@@ -5,6 +5,7 @@ import android.app.job.JobService
 import android.content.Context
 import android.util.Log
 import java.io.BufferedReader
+import java.io.FileNotFoundException
 import java.io.IOException
 import java.io.InputStreamReader
 import java.lang.Exception
@@ -42,21 +43,23 @@ class SseConnectorThread(private val context: Context) : Thread() {
             connection.setRequestProperty("Accept-Encoding", "identity")
 
             val input = BufferedReader(InputStreamReader(connection.inputStream))
-            try {
-                while (true) {
-                    val line = input.readLine()
+            do {
+                val line = input.readLine()
+                if (line != null) {
                     NotificationHelper.show(context, line)
                 }
-            } catch (e: IOException) {
-                // is likely to happen frequently but there is no need to worry
-            } catch (e: Exception) {
-                Log.e("sse_connector", "SSE Connection failed", e)
-            }
+            } while (line != null)
 
-            SseConnectorPlugin.scheduleOneTimeJob(context)
+        } catch (e: FileNotFoundException) {
+            // is likely to happen on connectivity issues but there is no need to worry
+        } catch (e: IOException) {
+            // is likely to happen on connectivity issues but there is no need to worry
+        } catch (e: Exception) {
+            Log.e("sse_connector", "SSE Connection failed", e)
         } finally {
             mutex.release()
         }
+        SseConnectorPlugin.scheduleOneTimeJob(context)
     }
 
 
