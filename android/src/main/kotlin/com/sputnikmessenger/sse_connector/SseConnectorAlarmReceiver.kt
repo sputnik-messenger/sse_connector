@@ -31,6 +31,7 @@ class SseConnectorAlarmReceiver : BroadcastReceiver() {
                             acquire(1000 * 60)
                         }
                     }
+            Log.d("sse_connector:alarm", "got wakeLock")
 
             if (SseConnectorThread.mutex.tryAcquire()) {
                 SseAlarmReceiverThread(context, wakeLock).start()
@@ -40,6 +41,7 @@ class SseConnectorAlarmReceiver : BroadcastReceiver() {
 
             SseConnectorPlugin.scheduleOneTimeJob(context, fallBackAlarmInMinutes = 30)
         }
+        Log.d("sse_connector:alarm", "end")
     }
 }
 
@@ -47,6 +49,7 @@ class SseAlarmReceiverThread(private val context: Context, private val wakeLock:
         Thread() {
 
     override fun run() {
+        Log.d("sse_connector:alarmTh", "start")
         try {
             val prefs = PrefsHelper.getPrefs(context);
             val urlString = PrefsHelper.getPollNotificationUrl(prefs)
@@ -55,7 +58,9 @@ class SseAlarmReceiverThread(private val context: Context, private val wakeLock:
             val url = URL("$urlString?token=$pushKey&since=$lastPushKeyTs")
             val connection = url.openConnection() as HttpURLConnection
             val json = InputStreamReader(connection.inputStream).readText()
+            Log.d("sse_connector:alarmTh", "pulled event")
             if (json.isNotBlank()) {
+                Log.d("sse_connector:alarmTh", "showing notification")
                 NotificationHelper.show(context, json)
             }
         } catch (e: FileNotFoundException) {
@@ -68,6 +73,7 @@ class SseAlarmReceiverThread(private val context: Context, private val wakeLock:
             SseConnectorThread.mutex.release()
             wakeLock.release()
         }
+        Log.d("sse_connector:alarmTh", "end")
     }
 
 }
