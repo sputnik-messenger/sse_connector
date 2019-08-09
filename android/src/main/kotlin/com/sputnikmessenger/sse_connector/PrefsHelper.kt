@@ -8,9 +8,11 @@ class PrefsHelper {
         private const val prefs_name: String = "com.sputnik-messenger.sse_connector"
         private const val key_wakeLockTag: String = "wakeLockTag"
         private const val key_sseNotificationsUrl: String = "sseNotificationsUrl"
-        private const val key_pullNotificationUrl: String = "pullNotificationUrl"
+        private const val key_pollllNotificationUrl: String = "pollNotificationUrl"
         private const val key_notificationChannelId: String = "notificationChannelId"
         private const val key_notificationSmallIcon: String = "notificationSmallIcon"
+        private const val key_lastPushKeyTs: String = "lastPushKeyTs"
+        private const val key_pushKey: String = "pushKey"
 
 
         fun getPrefs(context: Context): SharedPreferences {
@@ -27,8 +29,8 @@ class PrefsHelper {
             editor.putString(key_sseNotificationsUrl, sseNotificationsUrl)
         }
 
-        fun setPullNotificationUrl(editor: SharedPreferences.Editor, pullNotificationsUrl: String) {
-            editor.putString(key_pullNotificationUrl, pullNotificationsUrl)
+        fun setPollNotificationUrl(editor: SharedPreferences.Editor, pullNotificationsUrl: String) {
+            editor.putString(key_pollllNotificationUrl, pullNotificationsUrl)
         }
 
         fun setNotificationChannelId(editor: SharedPreferences.Editor, notificationChannelId: String) {
@@ -40,6 +42,14 @@ class PrefsHelper {
             editor.putString(key_notificationSmallIcon, notificationSmallIcon)
         }
 
+        fun setLastPushKeyTs(editor: SharedPreferences.Editor, lastPushKeyTs: Int) {
+            editor.putInt(key_lastPushKeyTs, lastPushKeyTs)
+        }
+
+        fun setPushKey(editor: SharedPreferences.Editor, pushKey: String) {
+            editor.putString(key_pushKey, pushKey)
+        }
+
 
         fun getWakeLockTag(prefs: SharedPreferences): String? {
             return prefs.getString(key_wakeLockTag, null)
@@ -49,8 +59,8 @@ class PrefsHelper {
             return prefs.getString(key_sseNotificationsUrl, null)
         }
 
-        fun getPullNotificationUrl(prefs: SharedPreferences): String? {
-            return prefs.getString(key_pullNotificationUrl, null)
+        fun getPollNotificationUrl(prefs: SharedPreferences): String? {
+            return prefs.getString(key_pollllNotificationUrl, null)
         }
 
         fun getNotificationChannelId(prefs: SharedPreferences): String? {
@@ -59,6 +69,14 @@ class PrefsHelper {
 
         fun getNotificationSmallIcon(prefs: SharedPreferences): String? {
             return prefs.getString(key_notificationSmallIcon, null)
+        }
+
+        fun getLastPushKeyTs(prefs: SharedPreferences): Int {
+            return prefs.getInt(key_lastPushKeyTs, 0)
+        }
+
+        fun getPushKey(prefs: SharedPreferences): String? {
+            return prefs.getString(key_pushKey, null)
         }
 
 

@@ -14,15 +14,28 @@ import java.lang.Exception
 class NotificationHelper {
 
     companion object {
-        fun show(context: Context, line: String) {
-            println("received line $line")
+        fun show(context: Context, json: String) {
             try {
-                val json = line.substringAfter(":")
-                println("json $json")
+
                 val parsed = JSONObject(json)
 
-
                 if (parsed.getJSONObject("notification").getString("event_id").isNotBlank()) {
+
+                    val prefs = PrefsHelper.getPrefs(context)
+                    val pushKey = PrefsHelper.getPushKey(prefs)
+                    try {
+                        val devices = parsed.getJSONObject("notification").getJSONArray("devices")
+                        val device = (0 until devices.length()).map { i -> devices.getJSONObject(i) }.find { device -> device.getString("pushkey") == pushKey }
+                        val pushKeyTs = device!!.getInt("pushkey_ts")
+                        if (pushKeyTs > 0) {
+                            val editor = prefs.edit();
+                            PrefsHelper.setLastPushKeyTs(editor, pushKeyTs)
+                            editor.apply()
+                        }
+                    } catch (e: Exception) {
+                        Log.e("sse_connector", "extracting pushkey_ts failed", e)
+                    }
+
 
                     val senderName = try {
                         val displayName = parsed.getJSONObject("notification").getString("sender_display_name")
@@ -45,6 +58,7 @@ class NotificationHelper {
                     } catch (e: Exception) {
                         "Open to read"
                     }
+
 
                     val matrixPrio = try {
                         parsed.getJSONObject("notification").getString("prio")

@@ -99,8 +99,9 @@ class SseConnectorPlugin(private var context: Context) : MethodCallHandler {
     override fun onMethodCall(call: MethodCall, result: Result) {
         if (call.method == "initSseConnection") {
             val wakeLockTag = call.argument<String>("wakeLockTag")
+            val pushKey = call.argument<String>("pushKey")
             val sseNotificationsUrl = call.argument<String>("sseNotificationsUrl")
-            val pullNotificationUrl = call.argument<String>("pullNotificationUrl")
+            val pollNotificationUrl = call.argument<String>("pollNotificationUrl")
             val notificationChannelId = call.argument<String>("notificationChannelId")
             val notificationChannelName = call.argument<String>("notificationChannelName")
             val notificationChannelDescription = call.argument<String>("notificationChannelDescription")
@@ -111,8 +112,9 @@ class SseConnectorPlugin(private var context: Context) : MethodCallHandler {
             PrefsHelper.setWakeLockTag(editor, wakeLockTag!!)
             PrefsHelper.setNotificationChannelId(editor, notificationChannelId!!)
             PrefsHelper.setSseNotificationsUrl(editor, sseNotificationsUrl!!)
-            PrefsHelper.setPullNotificationUrl(editor, pullNotificationUrl!!)
+            PrefsHelper.setPollNotificationUrl(editor, pollNotificationUrl!!)
             PrefsHelper.setNotificationSmallIcon(editor, notificationSmallIcon!!)
+            PrefsHelper.setPushKey(editor, pushKey!!)
             editor.apply()
 
 

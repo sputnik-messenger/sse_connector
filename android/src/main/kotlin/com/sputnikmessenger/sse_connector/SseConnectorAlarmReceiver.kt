@@ -4,6 +4,14 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
+import android.util.Log
+import java.io.BufferedReader
+import java.io.FileNotFoundException
+import java.io.IOException
+import java.io.InputStreamReader
+import java.lang.Exception
+import java.net.HttpURLConnection
+import java.net.URL
 
 
 class SseConnectorAlarmReceiver : BroadcastReceiver() {
@@ -36,12 +44,23 @@ class SseAlarmReceiverThread(private val context: Context, private val wakeLock:
         Thread() {
 
     override fun run() {
-        println("${currentThread()} run")
-
         try {
-            sleep(5000)
-            // todo: poll update
-            // todo: show notification if one exists
+            val prefs = PrefsHelper.getPrefs(context);
+            val urlString = PrefsHelper.getPollNotificationUrl(prefs)
+            val pushKey = PrefsHelper.getPushKey(prefs)
+            val lastPushKeyTs = PrefsHelper.getLastPushKeyTs(prefs)
+            val url = URL("$urlString?token=$pushKey&since=$lastPushKeyTs")
+            val connection = url.openConnection() as HttpURLConnection
+            val json = InputStreamReader(connection.inputStream).readText()
+            if (json.isNotBlank()) {
+                NotificationHelper.show(context, json)
+            }
+        } catch (e: FileNotFoundException) {
+            // is likely to happen on connectivity issues but there is no need to worry
+        } catch (e: IOException) {
+            // is likely to happen on connectivity issues but there is no need to worry
+        } catch (e: Exception) {
+            Log.e("sse_connector", "SSE Connection failed", e)
         } finally {
             SseConnectorThread.mutex.release()
             wakeLock.release()

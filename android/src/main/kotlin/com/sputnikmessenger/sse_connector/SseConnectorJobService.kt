@@ -36,8 +36,11 @@ class SseConnectorThread(private val context: Context) : Thread() {
     override fun run() {
 
         try {
-            val urlString = PrefsHelper.getSseNotificationsUrl(PrefsHelper.getPrefs(context))
-            val url = URL(urlString)
+            val prefs = PrefsHelper.getPrefs(context);
+            val urlString = PrefsHelper.getSseNotificationsUrl(prefs)
+            val pushKey = PrefsHelper.getPushKey(prefs)
+            val url = URL("$urlString?token=$pushKey")
+
             val connection = url.openConnection() as HttpURLConnection
             connection.readTimeout = 0
             connection.setRequestProperty("Accept-Encoding", "identity")
@@ -46,7 +49,7 @@ class SseConnectorThread(private val context: Context) : Thread() {
             do {
                 val line = input.readLine()
                 if (line != null) {
-                    NotificationHelper.show(context, line)
+                    NotificationHelper.show(context, line.substringAfter(":"))
                 }
             } while (line != null)
 

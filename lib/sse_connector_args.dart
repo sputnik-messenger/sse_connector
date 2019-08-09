@@ -7,8 +7,9 @@ enum NotificationChannelImportance {
 
 class SseConnectorArgs {
   final String wakeLockTag;
+  final String pushKey;
   final String sseNotificationsUrl;
-  final String pullNotificationUrl;
+  final String pollNotificationUrl;
   final String notificationChannelId;
   final String notificationChannelName;
   final String notificationChannelDescription;
@@ -17,16 +18,18 @@ class SseConnectorArgs {
 
   SseConnectorArgs(
       {this.wakeLockTag,
+      this.pushKey,
       this.sseNotificationsUrl,
-      this.pullNotificationUrl,
+      this.pollNotificationUrl,
       this.notificationChannelId,
       this.notificationChannelName,
       this.notificationChannelDescription,
       this.notificationChannelImportance,
       this.notificationSmallIcon})
       : assert(wakeLockTag != null),
+        assert(pushKey != null),
         assert(sseNotificationsUrl != null),
-        assert(pullNotificationUrl != null),
+        assert(pollNotificationUrl != null),
         assert(notificationChannelId != null),
         assert(notificationChannelName != null),
         assert(notificationChannelDescription != null),

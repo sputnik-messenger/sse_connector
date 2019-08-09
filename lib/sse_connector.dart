@@ -12,8 +12,9 @@ class SseConnector {
 
     final map = {
       'wakeLockTag': args.wakeLockTag,
+      'pushKey': args.pushKey,
       'sseNotificationsUrl': args.sseNotificationsUrl,
-      'pullNotificationUrl': args.pullNotificationUrl,
+      'pollNotificationUrl': args.pollNotificationUrl,
       'notificationChannelId': args.notificationChannelId,
       'notificationChannelName': args.notificationChannelName,
       'notificationChannelDescription': args.notificationChannelDescription,
