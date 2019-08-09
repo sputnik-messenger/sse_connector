@@ -35,14 +35,14 @@ class SseConnectorPlugin(private var context: Context) : MethodCallHandler {
             channel.setMethodCallHandler(SseConnectorPlugin(registrar.context()))
         }
 
-        fun scheduleOneTimeJob(context: Context) {
+        fun scheduleOneTimeJob(context: Context, fallBackAlarmInMinutes: Int?) {
             val builder = Builder(jobId0, ComponentName(context, SseConnectorJobService::class.java))
             configureJobInfo(builder)
             builder.setMinimumLatency(1000 * 10)
-            scheduleJob(context, builder.build())
+            scheduleJob(context, builder.build(), fallBackAlarmInMinutes)
         }
 
-        fun schedulePeriodicJob(context: Context) {
+        fun schedulePeriodicJob(context: Context, fallBackAlarmInMinutes: Int?) {
             val builder = Builder(jobId1, ComponentName(context, SseConnectorJobService::class.java))
             configureJobInfo(builder)
 
@@ -53,23 +53,25 @@ class SseConnectorPlugin(private var context: Context) : MethodCallHandler {
                         .setPeriodic(1000 * 60 * 15, 1000 * 60 * 15)
             }
 
-            scheduleJob(context, builder.build())
+            scheduleJob(context, builder.build(), fallBackAlarmInMinutes)
         }
 
-        private fun scheduleJob(context: Context, info: JobInfo) {
+        private fun scheduleJob(context: Context, info: JobInfo, fallBackAlarmInMinutes: Int?) {
             val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
             jobScheduler.schedule(info)
-            scheduleAlarm(context)
+            if (fallBackAlarmInMinutes != null) {
+                scheduleAlarm(context, fallBackAlarmInMinutes)
+            }
         }
 
-        private fun scheduleAlarm(context: Context) {
+        private fun scheduleAlarm(context: Context, inMinutes: Int) {
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             val alarmIntent = Intent(context, SseConnectorAlarmReceiver::class.java).let { intent ->
                 PendingIntent.getBroadcast(context, alarmId0, intent, 0)
             }
 
 
-            val alarmTime = SystemClock.elapsedRealtime() + 1000 * 60 * 30
+            val alarmTime = SystemClock.elapsedRealtime() + 1000 * 60 * inMinutes
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 alarmManager.setAndAllowWhileIdle(
                         AlarmManager.ELAPSED_REALTIME_WAKEUP,
@@ -130,8 +132,8 @@ class SseConnectorPlugin(private var context: Context) : MethodCallHandler {
                 notificationManager.createNotificationChannel(notificationChannel)
             }
 
-            scheduleOneTimeJob(context)
-            schedulePeriodicJob(context)
+            scheduleOneTimeJob(context, null)
+            schedulePeriodicJob(context, fallBackAlarmInMinutes = 15)
         } else {
             result.notImplemented()
         }

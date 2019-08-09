@@ -20,8 +20,12 @@ class SseConnectorJobService : JobService() {
     }
 
     override fun onStartJob(params: JobParameters?): Boolean {
+        Log.d("sse_connector:job", "start")
+
         if (SseConnectorThread.mutex.tryAcquire()) {
             SseConnectorThread(this).start()
+        } else {
+            Log.d("sse_connector:job", "mutex was locked")
         }
         return false
     }
@@ -34,7 +38,7 @@ class SseConnectorThread(private val context: Context) : Thread() {
     }
 
     override fun run() {
-
+        Log.d("sse_connector:sseThread", "start")
         try {
             val prefs = PrefsHelper.getPrefs(context);
             val urlString = PrefsHelper.getSseNotificationsUrl(prefs)
@@ -62,7 +66,8 @@ class SseConnectorThread(private val context: Context) : Thread() {
         } finally {
             mutex.release()
         }
-        SseConnectorPlugin.scheduleOneTimeJob(context)
+        SseConnectorPlugin.scheduleOneTimeJob(context, fallBackAlarmInMinutes = 15)
+        Log.d("sse_connector:sseThread", "end")
     }
 
 

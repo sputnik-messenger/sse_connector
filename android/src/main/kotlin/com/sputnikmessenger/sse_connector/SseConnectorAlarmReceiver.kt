@@ -20,6 +20,7 @@ class SseConnectorAlarmReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context?, intent: Intent?) {
+        Log.d("sse_connector:alarm", "start")
         if (context != null) {
             if (wakeLockTag == null) {
                 wakeLockTag = PrefsHelper.getWakeLockTag(PrefsHelper.getPrefs(context))!!
@@ -33,9 +34,11 @@ class SseConnectorAlarmReceiver : BroadcastReceiver() {
 
             if (SseConnectorThread.mutex.tryAcquire()) {
                 SseAlarmReceiverThread(context, wakeLock).start()
+            } else {
+                Log.d("sse_connector:alarm", "mutex was locked")
             }
 
-            SseConnectorPlugin.scheduleOneTimeJob(context)
+            SseConnectorPlugin.scheduleOneTimeJob(context, fallBackAlarmInMinutes = 30)
         }
     }
 }
