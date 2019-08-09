@@ -43,8 +43,8 @@ class SseConnectorThread(private val context: Context) : Thread() {
             val prefs = PrefsHelper.getPrefs(context);
             val urlString = PrefsHelper.getSseNotificationsUrl(prefs)
             val pushKey = PrefsHelper.getPushKey(prefs)
-            val url = URL("$urlString?token=$pushKey")
-
+            val lastPushKeyTs = PrefsHelper.getLastPushKeyTs(prefs)
+            val url = URL("$urlString?token=$pushKey&since=$lastPushKeyTs")
             val connection = url.openConnection() as HttpURLConnection
             connection.readTimeout = 0
             connection.setRequestProperty("Accept-Encoding", "identity")
