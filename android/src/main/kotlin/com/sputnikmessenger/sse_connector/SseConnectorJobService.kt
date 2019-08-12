@@ -5,9 +5,7 @@ import android.app.job.JobService
 import android.content.Context
 import android.util.Log
 import okhttp3.*
-import okhttp3.internal.wait
 import okio.ByteString
-import java.io.*
 import java.lang.Exception
 import java.net.URL
 import java.util.concurrent.Semaphore
@@ -50,39 +48,53 @@ class SseConnectorThread(private val context: Context) : Thread() {
     companion object {
         @Volatile
         var mutex = Semaphore(1);
+
+        @Volatile
+        var restart = false;
     }
 
+
     override fun run() {
+        restart = false;
         Log.d("sse_connector:sseThread", "start")
-        val prefs = PrefsHelper.getPrefs(context);
+        val prefs = PrefsHelper.getPrefs(context)
+        val enabled = PrefsHelper.getEnabled(prefs)
+
         val urlString = PrefsHelper.getSseNotificationsUrl(prefs)
         val pushKey = PrefsHelper.getPushKey(prefs)
         val lastPushKeyTs = PrefsHelper.getLastPushKeyTs(prefs)
         val url = URL("$urlString?token=$pushKey&since=$lastPushKeyTs")
 
-        val wakeMe = WakeMeThread(this, 1000 * 60 * 120);
-        try {
-            val request = Request.Builder().url(url).build();
+        if (enabled) {
+            val wakeMe = WakeMeThread(this, 1000 * 60 * 120);
+            try {
+                val request = Request.Builder().url(url).build();
 
-            val socket = okHttpClient.newWebSocket(request, SseWebSocket(context, wakeMe))
-            Log.d("sse_connector", "executing request")
+                val socket = okHttpClient.newWebSocket(request, SseWebSocket(context, wakeMe))
+                Log.d("sse_connector", "executing request")
 
-            wakeMe.start()
+                wakeMe.start()
 
-            while (okHttpClient.dispatcher.runningCallsCount() > 0) {
-                okHttpClient.dispatcher.executorService.awaitTermination(20, TimeUnit.MINUTES)
+                while (!restart && okHttpClient.dispatcher.runningCallsCount() > 0) {
+                    okHttpClient.dispatcher.executorService.awaitTermination(10, TimeUnit.MINUTES)
+                }
+
+            } catch (e: Exception) {
+                Log.d("sse_connector", "SSE Connection failed", e)
+            } finally {
+                Log.d("sse_connector", "finally")
+                mutex.release()
+                wakeMe.cancel()
+                okHttpClient.dispatcher.cancelAll()
+                okHttpClient.dispatcher.executorService.shutdownNow()
             }
-
-        } catch (e: Exception) {
-            Log.d("sse_connector", "SSE Connection failed", e)
-        } finally {
-            Log.d("sse_connector", "finally")
-            mutex.release()
-            wakeMe.cancel()
+            SseConnectorPlugin.scheduleOneTimeJob(context, fallBackAlarmInMinutes = 15)
+        } else {
+            Log.d("sse_connector", "disabled ... shutting down")
             okHttpClient.dispatcher.cancelAll()
             okHttpClient.dispatcher.executorService.shutdownNow()
+            mutex.release()
         }
-        SseConnectorPlugin.scheduleOneTimeJob(context, fallBackAlarmInMinutes = 15)
         Log.d("sse_connector:sseThread", "end")
     }
 
@@ -91,6 +103,10 @@ class SseConnectorThread(private val context: Context) : Thread() {
 
 class WakeMeThread(private val other: Thread, private val inMillis: Long) : Thread() {
 
+    companion object {
+        val globalWakeTrigger = Semaphore(1)
+    }
+
     @Volatile
     var resetFlag = false
 
@@ -98,12 +114,17 @@ class WakeMeThread(private val other: Thread, private val inMillis: Long) : Thre
     var cancelFlag = false
 
     override fun run() {
+        globalWakeTrigger.tryAcquire()
 
+        var globalWakeTriggered = false;
         do {
             resetFlag = false
             try {
                 Log.d("sse_connector", "wake me goes to sleep")
-                sleep(inMillis)
+                globalWakeTriggered = globalWakeTrigger.tryAcquire(inMillis, TimeUnit.MILLISECONDS)
+                if (globalWakeTriggered) {
+                    Log.d("sse_connector", "wake me got global wake trigger")
+                }
             } catch (e: InterruptedException) {
                 if (resetFlag) {
                     Log.d("sse_connector", "wake me got reset")
@@ -115,7 +136,7 @@ class WakeMeThread(private val other: Thread, private val inMillis: Long) : Thre
                 }
                 isInterrupted // clear interrupt
             }
-        } while (!cancelFlag && resetFlag)
+        } while (!globalWakeTriggered && !cancelFlag && resetFlag)
         if (!cancelFlag) {
             Log.d("sse_connector", "wake other")
             other.interrupt()
@@ -140,7 +161,9 @@ class WakeMeThread(private val other: Thread, private val inMillis: Long) : Thre
 
 }
 
-class SseWebSocket(val context: Context, val wakeMe: WakeMeThread) : WebSocketListener() {
+class SseWebSocket(private val context: Context, private val wakeMe: WakeMeThread) : WebSocketListener() {
+
+    private val prefs = PrefsHelper.getPrefs(context);
 
     override fun onOpen(webSocket: WebSocket, response: Response) {
         Log.d("sse_connector", "onOpen")
@@ -149,7 +172,8 @@ class SseWebSocket(val context: Context, val wakeMe: WakeMeThread) : WebSocketLi
     override fun onMessage(webSocket: WebSocket, text: String) {
         Log.d("sse_connector", "onMessage")
         wakeMe.resetTimer()
-        if (text.isNotBlank()) {
+        val enabled = PrefsHelper.getEnabled(prefs)
+        if (enabled && text.isNotBlank()) {
             NotificationHelper.show(context, text)
         }
     }

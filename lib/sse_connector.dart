@@ -25,4 +25,16 @@ class SseConnector {
         await _channel.invokeMethod('initSseConnection', map);
     return version;
   }
+
+  static Future<void> stopConnection() async {
+    await _channel.invokeMethod('stopMoonPushConnection');
+  }
+
+  static Future<void> openBatterySettings() async {
+    await _channel.invokeMethod('openBatterySettings');
+  }
+
+  static Future<bool> isBatteryOptimizationEnabled() async {
+    return await _channel.invokeMethod('isBatteryOptimizationEnabled');
+  }
 }

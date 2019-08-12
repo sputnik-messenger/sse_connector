@@ -45,7 +45,7 @@ class NotificationHelper {
                 val content = "Open to read"
 
                 val title = if (unread > 1) {
-                    "$unread rooms with new messages" //todo: unread count is not reliable
+                    "New messages in $unread rooms"
                 } else {
                     "New message"
                 }

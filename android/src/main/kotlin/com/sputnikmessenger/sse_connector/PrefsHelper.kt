@@ -13,6 +13,7 @@ class PrefsHelper {
         private const val key_notificationSmallIcon: String = "notificationSmallIcon"
         private const val key_lastPushKeyTs: String = "lastPushKeyTs"
         private const val key_pushKey: String = "pushKey"
+        private const val key_enabled: String = "enabled"
 
 
         fun getPrefs(context: Context): SharedPreferences {
@@ -50,6 +51,10 @@ class PrefsHelper {
             editor.putString(key_pushKey, pushKey)
         }
 
+        fun setEnabled(editor: SharedPreferences.Editor, enabled: Boolean) {
+            editor.putBoolean(key_enabled, enabled);
+        }
+
 
         fun getWakeLockTag(prefs: SharedPreferences): String? {
             return prefs.getString(key_wakeLockTag, null)
@@ -77,6 +82,10 @@ class PrefsHelper {
 
         fun getPushKey(prefs: SharedPreferences): String? {
             return prefs.getString(key_pushKey, null)
+        }
+
+        fun getEnabled(prefs: SharedPreferences): Boolean {
+            return prefs.getBoolean(key_enabled, false)
         }
 
 

@@ -16,12 +16,17 @@ import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry.Registrar
 import android.content.ComponentName
 import android.content.Intent
+import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Build
-import android.os.Bundle
-import android.os.Parcel
 import android.os.SystemClock
+import androidx.core.content.ContextCompat.startActivity
+import android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+import android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
+import androidx.core.content.ContextCompat.getSystemService
+import android.os.PowerManager
+import android.provider.Settings
 
 
 class SseConnectorPlugin(private var context: Context) : MethodCallHandler {
@@ -66,14 +71,17 @@ class SseConnectorPlugin(private var context: Context) : MethodCallHandler {
             }
         }
 
-        private fun scheduleAlarm(context: Context, inMinutes: Int) {
-            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            val alarmIntent = Intent(context, SseConnectorAlarmReceiver::class.java).let { intent ->
+        private fun buildAlarmIntent(context: Context): PendingIntent {
+            return Intent(context, SseConnectorAlarmReceiver::class.java).let { intent ->
                 val wakeLockTag = PrefsHelper.getWakeLockTag(PrefsHelper.getPrefs(context))!!
                 intent.putExtra("wakeLockTag", wakeLockTag)
                 PendingIntent.getBroadcast(context, alarmId0, intent, 0)
             }
+        }
 
+        private fun scheduleAlarm(context: Context, inMinutes: Int) {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val alarmIntent = buildAlarmIntent(context);
 
             val alarmTime = SystemClock.elapsedRealtime() + 1000 * 60 * inMinutes
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -87,6 +95,14 @@ class SseConnectorPlugin(private var context: Context) : MethodCallHandler {
                         alarmTime,
                         alarmIntent)
             }
+        }
+
+        private fun canecelAllJobsAndAlarms(context: Context) {
+            val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+            jobScheduler.cancel(jobId1);
+            jobScheduler.cancel(jobId0);
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            alarmManager.cancel(buildAlarmIntent(context))
         }
 
         private fun configureJobInfo(infoBuilder: Builder) {
@@ -121,6 +137,7 @@ class SseConnectorPlugin(private var context: Context) : MethodCallHandler {
             PrefsHelper.setPollNotificationUrl(editor, pollNotificationUrl!!)
             PrefsHelper.setNotificationSmallIcon(editor, notificationSmallIcon!!)
             PrefsHelper.setPushKey(editor, pushKey!!)
+            PrefsHelper.setEnabled(editor, true)
             editor.apply()
 
 
@@ -136,8 +153,31 @@ class SseConnectorPlugin(private var context: Context) : MethodCallHandler {
                 notificationManager.createNotificationChannel(notificationChannel)
             }
 
+
             scheduleOneTimeJob(context, null)
             schedulePeriodicJob(context, fallBackAlarmInMinutes = 15)
+        } else if (call.method == "stopMoonPushConnection") {
+            SseConnectorThread.restart = true;
+            canecelAllJobsAndAlarms(context)
+            val editor = PrefsHelper.getPrefs(context).edit()
+            PrefsHelper.setEnabled(editor, false)
+            editor.apply()
+            WakeMeThread.globalWakeTrigger.release()
+        } else if (call.method == "openBatterySettings") {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val intent = Intent()
+                intent.action = ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
+                intent.flags = FLAG_ACTIVITY_NEW_TASK
+                context.startActivity(intent)
+            }
+        } else if (call.method == "isBatteryOptimizationEnabled") {
+            val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+            val packageName = context.packageName
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                result.success(!pm.isIgnoringBatteryOptimizations(packageName))
+            } else {
+                result.success(false)
+            }
         } else {
             result.notImplemented()
         }
