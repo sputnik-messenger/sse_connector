@@ -26,13 +26,14 @@ class _MyAppState extends State<MyApp> {
     try {
 
       await SseConnector.initConnection(SseConnectorArgs(
+        pushKey: "matrix pusher device pushKey",
         notificationChannelDescription: "channel description",
         notificationChannelId: "cannel id",
         notificationChannelImportance:
             NotificationChannelImportance.IMPORTANCE_HIGH,
         notificationChannelName: "channel name",
         sseNotificationsUrl: "https://url to event source",
-        pullNotificationUrl: "https://url to pull notifications",
+        pollNotificationUrl: "https://url to pull notifications",
         wakeLockTag: "wake lock tag",
         //todo: setting icon is not working
         notificationSmallIcon: "images/small_icon.png",

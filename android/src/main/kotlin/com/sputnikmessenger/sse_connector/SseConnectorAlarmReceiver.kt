@@ -3,6 +3,8 @@ package com.sputnikmessenger.sse_connector
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.NetworkInfo
 import android.os.PowerManager
 import android.util.Log
 import java.io.BufferedReader
@@ -15,16 +17,12 @@ import java.net.URL
 
 
 class SseConnectorAlarmReceiver : BroadcastReceiver() {
-    companion object {
-        var wakeLockTag: String? = null
-    }
 
     override fun onReceive(context: Context?, intent: Intent?) {
         Log.d("sse_connector:alarm", "start")
-        if (context != null) {
-            if (wakeLockTag == null) {
-                wakeLockTag = PrefsHelper.getWakeLockTag(PrefsHelper.getPrefs(context))!!
-            }
+        if (context != null && intent != null) {
+            val wakeLockTag = intent.getStringExtra("wakeLockTag")
+
             val wakeLock =
                     (context.getSystemService(Context.POWER_SERVICE) as PowerManager).run {
                         newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, wakeLockTag).apply {
@@ -32,14 +30,22 @@ class SseConnectorAlarmReceiver : BroadcastReceiver() {
                         }
                     }
             Log.d("sse_connector:alarm", "got wakeLock")
+            SseConnectorPlugin.scheduleOneTimeJob(context, fallBackAlarmInMinutes = 30)
 
-            if (SseConnectorThread.mutex.tryAcquire()) {
+
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val activeNetwork: NetworkInfo? = cm.activeNetworkInfo
+            val isConnected: Boolean = activeNetwork?.isConnected == true
+
+            if (isConnected && SseConnectorThread.mutex.tryAcquire()) {
                 SseAlarmReceiverThread(context, wakeLock).start()
             } else {
                 Log.d("sse_connector:alarm", "mutex was locked")
+                Log.d("sse_connector:alarm", "release wakeLock")
+                wakeLock.release()
             }
 
-            SseConnectorPlugin.scheduleOneTimeJob(context, fallBackAlarmInMinutes = 30)
+
         }
         Log.d("sse_connector:alarm", "end")
     }

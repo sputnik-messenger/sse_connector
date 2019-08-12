@@ -19,6 +19,8 @@ import android.content.Intent
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Build
+import android.os.Bundle
+import android.os.Parcel
 import android.os.SystemClock
 
 
@@ -67,6 +69,8 @@ class SseConnectorPlugin(private var context: Context) : MethodCallHandler {
         private fun scheduleAlarm(context: Context, inMinutes: Int) {
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             val alarmIntent = Intent(context, SseConnectorAlarmReceiver::class.java).let { intent ->
+                val wakeLockTag = PrefsHelper.getWakeLockTag(PrefsHelper.getPrefs(context))!!
+                intent.putExtra("wakeLockTag", wakeLockTag)
                 PendingIntent.getBroadcast(context, alarmId0, intent, 0)
             }
 

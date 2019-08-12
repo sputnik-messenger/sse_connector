@@ -19,60 +19,50 @@ class NotificationHelper {
 
                 val parsed = JSONObject(json)
 
-                if (parsed.getJSONObject("notification").getString("event_id").isNotBlank()) {
-
-                    val prefs = PrefsHelper.getPrefs(context)
-                    val pushKey = PrefsHelper.getPushKey(prefs)
-                    try {
-                        val devices = parsed.getJSONObject("notification").getJSONArray("devices")
-                        val device = (0 until devices.length()).map { i -> devices.getJSONObject(i) }.find { device -> device.getString("pushkey") == pushKey }
-                        val pushKeyTs = device!!.getInt("pushkey_ts")
-                        if (pushKeyTs > 0) {
-                            val editor = prefs.edit();
-                            PrefsHelper.setLastPushKeyTs(editor, pushKeyTs)
-                            editor.apply()
-                        }
-                    } catch (e: Exception) {
-                        Log.e("sse_connector", "extracting pushkey_ts failed", e)
-                    }
+                val hasEventId = parsed.getJSONObject("notification").getString("event_id").isNotBlank()
 
 
-                    val senderName = try {
-                        val displayName = parsed.getJSONObject("notification").getString("sender_display_name")
-                        if (displayName.isBlank()) {
-                            "New message"
-                        } else {
-                            displayName
-                        }
-                    } catch (e: Exception) {
-                        "New message"
-                    }
-
-                    val content = try {
-                        val body = parsed.getJSONObject("notification").getJSONObject("content").getString("body")
-                        if (body.isBlank()) {
-                            "Open to read"
-                        } else {
-                            body
-                        }
-                    } catch (e: Exception) {
-                        "Open to read"
-                    }
-
-
-                    val matrixPrio = try {
-                        parsed.getJSONObject("notification").getString("prio")
-                    } catch (e: Exception) {
-                        "high"
-                    }
-
-
-                    val droidPrio = if (matrixPrio == "low") NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_HIGH
-
-
-                    showNotification(context, 0, senderName, content, droidPrio)
+                val timestamp = try {
+                    parsed.getInt("timestamp")
+                } catch (e: Exception) {
+                    0
                 }
-            } catch (e: JSONException) {
+
+                if (timestamp > 0) {
+                    val prefs = PrefsHelper.getPrefs(context)
+                    val editor = prefs.edit();
+                    PrefsHelper.setLastPushKeyTs(editor, timestamp)
+                    editor.apply()
+                }
+
+
+                val unread = try {
+                    parsed.getJSONObject("notification").getJSONObject("counts").getInt("unread")
+                } catch (e: Exception) {
+                    0
+                }
+
+                val content = "Open to read"
+
+                val title = if (unread > 1) {
+                    "$unread rooms with new messages" //todo: unread count is not reliable
+                } else {
+                    "New message"
+                }
+
+
+                val prio = NotificationCompat.PRIORITY_MAX
+
+
+                if (hasEventId) {
+                    showNotification(context, 0, title, content, prio, false)
+                } else if (unread > 0) {
+                    showNotification(context, 0, title, content, prio, true)
+                } else {
+                    cancelNotification(context, 0)
+                }
+
+            } catch (e: Throwable) {
                 Log.e("JSON Parser", "Error parsing data $e")
             }
         }
@@ -81,7 +71,8 @@ class NotificationHelper {
                                      id: Int,
                                      title: String,
                                      contentText: String,
-                                     priority: Int
+                                     priority: Int,
+                                     alertOnce: Boolean
         ) {
 
             val prefs = PrefsHelper.getPrefs(context)
@@ -114,15 +105,26 @@ class NotificationHelper {
                     .setContentTitle(title)
                     .setContentText(contentText)
                     .setPriority(priority)
-                    .setAutoCancel(false)
+                    .setAutoCancel(true)
                     .setContentIntent(pendingIntent)
+                    .setOnlyAlertOnce(alertOnce)
 
 
             with(NotificationManagerCompat.from(context)) {
                 notify(id, notification.build())
             }
         }
+
+
+        private fun cancelNotification(context: Context,
+                                       id: Int
+        ) {
+            with(NotificationManagerCompat.from(context)) {
+                cancel(id)
+            }
+        }
     }
+
 
 
 }
