@@ -21,12 +21,8 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Build
 import android.os.SystemClock
-import androidx.core.content.ContextCompat.startActivity
-import android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
 import android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
-import androidx.core.content.ContextCompat.getSystemService
 import android.os.PowerManager
-import android.provider.Settings
 
 
 class SseConnectorPlugin(private var context: Context) : MethodCallHandler {
@@ -40,12 +36,18 @@ class SseConnectorPlugin(private var context: Context) : MethodCallHandler {
         fun registerWith(registrar: Registrar) {
             val channel = MethodChannel(registrar.messenger(), "com.sputnik-messenger.sse_connector")
             channel.setMethodCallHandler(SseConnectorPlugin(registrar.context()))
+            val enabled = PrefsHelper.getEnabled(PrefsHelper.getPrefs(registrar.context()))
+            if (enabled) {
+                scheduleOneTimeJob(registrar.context(), 30, now = true)
+            }
         }
 
-        fun scheduleOneTimeJob(context: Context, fallBackAlarmInMinutes: Int?) {
+        fun scheduleOneTimeJob(context: Context, fallBackAlarmInMinutes: Int?, now: Boolean = false) {
             val builder = Builder(jobId0, ComponentName(context, SseConnectorJobService::class.java))
             configureJobInfo(builder)
-            builder.setMinimumLatency(1000 * 10)
+            if (!now) {
+                builder.setMinimumLatency(1000 * 10)
+            }
             scheduleJob(context, builder.build(), fallBackAlarmInMinutes)
         }
 
@@ -97,7 +99,7 @@ class SseConnectorPlugin(private var context: Context) : MethodCallHandler {
             }
         }
 
-        private fun canecelAllJobsAndAlarms(context: Context) {
+        private fun cancelAllJobsAndAlarms(context: Context) {
             val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
             jobScheduler.cancel(jobId1);
             jobScheduler.cancel(jobId0);
@@ -158,7 +160,7 @@ class SseConnectorPlugin(private var context: Context) : MethodCallHandler {
             schedulePeriodicJob(context, fallBackAlarmInMinutes = 15)
         } else if (call.method == "stopMoonPushConnection") {
             SseConnectorThread.restart = true;
-            canecelAllJobsAndAlarms(context)
+            cancelAllJobsAndAlarms(context)
             val editor = PrefsHelper.getPrefs(context).edit()
             PrefsHelper.setEnabled(editor, false)
             editor.apply()

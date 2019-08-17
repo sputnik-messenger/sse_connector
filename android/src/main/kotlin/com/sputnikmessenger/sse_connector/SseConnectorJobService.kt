@@ -40,7 +40,7 @@ class SseConnectorThread(private val context: Context) : Thread() {
     private val okHttpClient = OkHttpClient.Builder()
             .readTimeout(0, TimeUnit.MILLISECONDS)
             .cache(null)
-            .pingInterval(15, TimeUnit.MINUTES)
+            .pingInterval(2, TimeUnit.MINUTES)
             .retryOnConnectionFailure(false)
             .build()
 
@@ -188,14 +188,14 @@ class SseWebSocket(private val context: Context, private val wakeMe: WakeMeThrea
 
     override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
         Log.d("sse_connector", "onClosed")
-        wakeMe.cancel()
+        SseConnectorThread.restart = true;
+        wakeMe.wakeNow()
     }
 
     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
         Log.d("sse_connector", "onFailure", t)
+        SseConnectorThread.restart = true;
         wakeMe.wakeNow()
-        webSocket.close(1000, t.message)
-        webSocket.cancel()
     }
 
 
